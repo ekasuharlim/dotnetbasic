@@ -1,0 +1,25 @@
+if you have await you need async in function declaration, 
+if you have async you need Task for return value 
+
+async = indication that a function is async , always return Task = void or Task<T> return T
+await = wait for async function to finish, 
+	    can capture the return value if use Task<object>
+
+Task<int> = a function return int 
+	    will need to be capture using await
+	    eg : var count = await (Task<int>) will have  int value
+
+How to create async function
+- mark function with async keyword
+- inside function, call await Task.Run(action)
+    await Task.Run(action) , action = delegate void, or any other parameters defined in below link  
+                            https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.run?view=net-5.0
+
+
+How to run async function 
+1. await function_name
+2. Create task => Task t = new Task(functionname)
+    t.Start
+    t.Wait
+3. create task t = function_name()
+    t.Result
