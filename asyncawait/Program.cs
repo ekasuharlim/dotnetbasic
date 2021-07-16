@@ -8,9 +8,9 @@ namespace asyncawait
     {
         static void Main(string[] args)
         {
-            var a = Method1_LongRunning();
+            var taskMethod1Run = Method1_LongRunning();
             Method2_ShortRunning();            
-            var count = a.Result;            
+            var count = taskMethod1Run.Result;            
             Console.WriteLine($"Method 1 length {count}");
             Console.WriteLine("End");
             Console.ReadKey();
@@ -34,6 +34,10 @@ namespace asyncawait
             for(var i=0; i < 100;i++){
                 Console.WriteLine($"---- Method 2 {i}");
             }
+        }
+
+        static async Task void_method(){
+            await Method1_LongRunning();
         }
     }
 }
