@@ -1,3 +1,6 @@
 using reflection (Activator)
 system.Type contains information of your class
 T = typeof T
+
+Create DependencyContainer that can add Interface and class (add,get)
+DependencyResolver will find the needed interface in DependencyContainer and return the correct type DependencyContainer.Get

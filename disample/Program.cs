@@ -6,10 +6,10 @@ namespace disample
     {
         static void Main(string[] args)
         {
-            var dependency = new DependencyResolver();
-            //var service  = (HelloMessageService)dependency.CreateService(typeof(HelloMessageService));
-            var service  = dependency.CreateService<HelloMessageService>();
-            var consumer = (ServiceConsumer)dependency.CreateService(typeof(ServiceConsumer),service);
+            var diResolver = new DependencyResolver();            
+            var service  = diResolver.CreateService<HelloMessageService>();
+            //var service  = diResolver.CreateService<GreetingMessageService>("eka");
+            var consumer = new ServiceConsumer(service);
             consumer.DisplayGreetings();
             Console.WriteLine("Done");
         }
@@ -17,18 +17,14 @@ namespace disample
 
     public class DependencyResolver{
 
-        public object CreateService(Type t){
-            return Activator.CreateInstance(t);
-        }
 
         public T CreateService<T>(){
             return (T)Activator.CreateInstance(typeof(T));
 
         }
 
-
-        public object CreateService(Type t,object parameter){
-            return Activator.CreateInstance(t,parameter);
+        public T CreateService<T>(object param){
+            return (T)Activator.CreateInstance(typeof(T),param);
 
         }
 
@@ -36,8 +32,8 @@ namespace disample
 
     public class ServiceConsumer{
 
-        HelloMessageService _service;
-        public ServiceConsumer(HelloMessageService service){
+        IMessageService _service;
+        public ServiceConsumer(IMessageService service){
             _service = service;
         }
 
@@ -46,7 +42,23 @@ namespace disample
         }        
     }
 
-    public class HelloMessageService
+    public interface IMessageService{
+        void ShowMessage();
+    }
+    public class GreetingMessageService : IMessageService
+    {
+        private string _name;
+        public GreetingMessageService(string name){
+            _name = name;
+        }
+
+        public void ShowMessage(){
+            Console.WriteLine($"Greetings {_name}");
+        }
+
+    }
+
+    public class HelloMessageService : IMessageService
     {
         public HelloMessageService(){
 
