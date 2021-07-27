@@ -1,0 +1,3 @@
+using reflection (Activator)
+system.Type contains information of your class
+T = typeof T
