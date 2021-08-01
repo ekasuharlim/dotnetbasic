@@ -28,22 +28,21 @@ namespace disample
         }
 
         public T GetService<T>(){
-            //get type
-            //get consturctor
-            //get construtor parameter
+            return (T)GetService(typeof(T));
+        }
 
-            var objectToCreate =  _container.GetDependency(typeof(T));
+        public object GetService(Type type){
+            var objectToCreate =  _container.GetDependency(type);
             var construtor = objectToCreate.GetConstructors().Single();
             var constructorParameters = construtor.GetParameters().ToArray();
             var constructorParametersImpelementation = new  object[constructorParameters.Length];
             if(constructorParameters.Length > 0){
                 for(int i=0; i < constructorParameters.Length; i++){
-                    constructorParametersImpelementation[i] = Activator.CreateInstance(constructorParameters[i].ParameterType);
+                    constructorParametersImpelementation[i] =  GetService(constructorParameters[i].ParameterType);
                 }
             }
-            return (T)Activator.CreateInstance(objectToCreate,constructorParametersImpelementation);
+            return Activator.CreateInstance(objectToCreate,constructorParametersImpelementation);
         }
-
     }
 
     public class DependencyContainer{
@@ -66,7 +65,7 @@ namespace disample
     public class ServiceConsumer{
 
         IMessageService _service;
-        public ServiceConsumer(GreetingMessageService service){
+        public ServiceConsumer(HelloMessageService service){
             _service = service;
         }
 
