@@ -3,4 +3,10 @@ system.Type contains information of your class
 T = typeof T
 
 Create DependencyContainer that can add Interface and class (add,get)
-DependencyResolver will find the needed interface in DependencyContainer and return the correct type DependencyContainer.Get
+DependencyResolver will find the needed interface in DependencyContainer and return the correct type DependencyContainer.get
+
+Dependecy resolver with Multiple constructor parameter
+
+
+All object are registered inside DependencyContainer
+
