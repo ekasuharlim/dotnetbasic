@@ -9,12 +9,12 @@ namespace disample
         static void Main(string[] args)
         {
             var diContainer = new DependencyContainer();
-            diContainer.AddDependency(typeof(ServiceConsumer));
-            diContainer.AddDependency(typeof(HelloMessageService));
+            diContainer.AddDependency(typeof(IServiceConsumer), typeof(ServiceConsumer));
+            diContainer.AddDependency(typeof(IMessageService), typeof(GreetingMessageService));
 
             var diResolver = new DependencyResolver(diContainer);            
             
-            var service  = diResolver.GetService<ServiceConsumer>();
+            var service  = diResolver.GetService<IServiceConsumer>();
             service.DisplayGreetings(); 
             Console.WriteLine("Done");
         }
@@ -47,25 +47,25 @@ namespace disample
 
     public class DependencyContainer{
 
-        List<Type> _containers;
+        Dictionary<Type,Type> _containers;
 
         public DependencyContainer(){
-            _containers = new List<Type>();
+            _containers = new Dictionary<Type, Type>();
         }
 
-        public void AddDependency(Type t){
-            _containers.Add(t);
+        public void AddDependency(Type parent, Type child){
+            _containers.Add(parent,child);
         }
 
-        public Type GetDependency(Type find){
-            return _containers.First(t => t.Name  == find.Name);
+        public Type GetDependency(Type findInterface){            
+            return _containers[findInterface];
         }
     }
 
-    public class ServiceConsumer{
+    public class ServiceConsumer : IServiceConsumer{
 
         IMessageService _service;
-        public ServiceConsumer(HelloMessageService service){
+        public ServiceConsumer(IMessageService service){
             _service = service;
         }
 
@@ -73,6 +73,13 @@ namespace disample
             _service.ShowMessage();
         }        
     }
+
+    public interface IServiceConsumer
+    {
+        void DisplayGreetings();
+    }
+
+
 
     public interface IMessageService{
         void ShowMessage();

@@ -10,3 +10,4 @@ Dependecy resolver with Multiple constructor parameter
 
 All object are registered inside DependencyContainer
 
+Next : 2021-08-03, how to resolve interface
