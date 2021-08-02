@@ -9,8 +9,8 @@ namespace disample
         static void Main(string[] args)
         {
             var diContainer = new DependencyContainer();
-            diContainer.AddDependency(typeof(IServiceConsumer), typeof(ServiceConsumer));
-            diContainer.AddDependency(typeof(IMessageService), typeof(GreetingMessageService));
+            diContainer.AddDependency<IServiceConsumer,ServiceConsumer>();
+            diContainer.AddDependency<IMessageService,GreetingMessageService>();
 
             var diResolver = new DependencyResolver(diContainer);            
             
@@ -53,8 +53,8 @@ namespace disample
             _containers = new Dictionary<Type, Type>();
         }
 
-        public void AddDependency(Type parent, Type child){
-            _containers.Add(parent,child);
+        public void AddDependency<T1,T2>(){
+            _containers.Add(typeof(T1), typeof(T2));
         }
 
         public Type GetDependency(Type findInterface){            
