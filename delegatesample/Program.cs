@@ -5,6 +5,7 @@ namespace delegatesample
     class Program
     {
         private delegate int mathOperation(int x, int y);
+        
         static void Main(string[] args)
         {
             mathOperation op1 = add;
@@ -16,7 +17,23 @@ namespace delegatesample
             chainedOperation += addPlus4;
             //below command will run add and addPlus4 method
             Console.WriteLine(Calculate2plus3(chainedOperation));
+            
+
+            Action<int> p1 = Print;
+            p1(100);
+
+            Action<ISampleClass> p2 = PrintSample;
+            p2(new SampleClass());
+
             Console.WriteLine("End");
+        }
+
+        static void PrintSample(ISampleClass smpl){
+            smpl.ShowSampleClass("abc");
+        }
+
+        static void Print(int x){
+            Console.WriteLine(x);
         }
 
         static int Calculate2plus3(mathOperation op){            
@@ -34,5 +51,16 @@ namespace delegatesample
         }
 
         
+        public interface ISampleClass{
+            void ShowSampleClass(string msg);
+        }
+
+        public class SampleClass : ISampleClass
+        {
+            public void ShowSampleClass(string msg)
+            {
+                Console.WriteLine($"From sample class {msg}");
+            }            
+        }
     }
 }
