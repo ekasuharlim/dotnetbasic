@@ -1,0 +1,28 @@
+Database <- access - IUserStore <- has a - UserManager <- uses Plugins (SignInManager) 
+    All takes TUser class parameter
+
+//sample of IUserStore methods
+public interface IUserStore<TUser> : IDisposable where TUser : class
+{
+    Task<string> GetUserIdAsync(TUser user, CancellationToken cancellationToken);
+    Task<string> GetUserNameAsync(TUser user, CancellationToken cancellationToken);
+
+//UserManager constructor 
+public UserManager(IUserStore<TUser> store,
+    IOptions<IdentityOptions> optionsAccessor,
+    IPasswordHasher<TUser> passwordHasher,
+    IEnumerable<IUserValidator<TUser>> userValidators,
+    IEnumerable<IPasswordValidator<TUser>> passwordValidators,
+    ILookupNormalizer keyNormalizer,
+    IdentityErrorDescriber errors,
+    IServiceProvider services,
+    ILogger<UserManager<TUser>> logger)
+
+
+Claims
+Claim = Value-Pair - inside -> ClaimIdentity -> ClaimPrincipal : IPrincipal  <- is a - HttpContext.User
+
+Steps :
+Create class for user object
+Create DataStore / use extension (EF)
+Add dependency injection
