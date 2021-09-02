@@ -4,7 +4,7 @@ namespace delegatesample
 {
     class Program
     {
-        private delegate int mathOperation(int x, int y);
+        private delegate int mathOperation(int x, int y);        
         
         static void Main(string[] args)
         {
@@ -25,7 +25,13 @@ namespace delegatesample
             Action<ISampleClass> p2 = PrintSample;
             p2(new SampleClass());
 
+            WriteInt(str => Convert.ToInt32(str));
+
             Console.WriteLine("End");
+        }
+
+        static void WriteInt(Func<string,int> f1){
+            Console.WriteLine(f1("120"));
         }
 
         static void PrintSample(ISampleClass smpl){
