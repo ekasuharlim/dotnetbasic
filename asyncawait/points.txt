@@ -23,3 +23,13 @@ How to run async function
     t.Wait
 3. create task t = function_name()
     t.Result
+	
+	
+2024-Dec-9
+async = indication that a function is async , always return Task = void or Task<T> return T
+await = wait for async function to finish, 
+	    can capture the return value if use Task<object> , 
+		await will not block the main thread, until the main thread call T.Result
+
+async -> function indicator, indicate function is already has Task.Run in it and wait will not block the calling thread  
+await will call Task and wait it to finish
