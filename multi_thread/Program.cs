@@ -8,20 +8,57 @@ void PrintNumbers(string threadName, int sleepTime) {
     }
 }
 
-Thread t1 = new Thread(() => PrintNumbers("Thread 1", 1000));
-Thread t2 = new Thread(() => PrintNumbers("Thread 2", 500));
-Thread t3 = new Thread(() => PrintNumbers("Thread 3", 100));
+int counter = 0;
+object locking = new object();
 
-t1.Start();
-t2.Start();
-t3.Start();
+void IncreaseCounter() {
+    for (int i = 0; i < 10000; i++) {
+        lock(locking){
+            counter++;
+        }
+    }
+}
 
-t1.Join();
-t2.Join();
-t3.Join();
+//LessonOne();
+for(int i = 0; i < 10; i++) {
+    counter = 0;
+    LessonTwo();  
+}
+ 
+
+void LessonTwo() {
+
+    Thread t1 = new Thread( () => IncreaseCounter());
+    Thread t2 = new Thread( () => IncreaseCounter());
+    Thread t3 = new Thread( () => IncreaseCounter());
+
+    t1.Start();
+    t2.Start();
+    t3.Start();
+
+    t1.Join();
+    t2.Join();
+    t3.Join();
 
 
-Console.WriteLine("Done");
-Console.ReadKey();
+    Console.WriteLine("Counter: " + counter);
+    Console.WriteLine("Done");
+}
+
+void LessonOne() {
+    Thread t1 = new Thread(() => PrintNumbers("Thread 1", 1000));
+    Thread t2 = new Thread(() => PrintNumbers("Thread 2", 500));
+    Thread t3 = new Thread(() => PrintNumbers("Thread 3", 100));
+
+    t1.Start();
+    t2.Start();
+    t3.Start();
+
+    t1.Join();
+    t2.Join();
+    t3.Join();
 
 
+    Console.WriteLine("Done");
+    Console.ReadKey();
+}
