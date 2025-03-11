@@ -10,9 +10,48 @@ void PrintNumbers(string threadName, int sleepTime) {
 
 
 //LessonOne();
-LessonTwo(); 
+//LessonTwo(); 
+LessonThree();
 
 
+
+
+
+void LessonThree(){
+    //deadlock
+    int counter = 0;
+    object lock1 = new object();
+    object lock2 = new object();
+
+    Thread t1 = new Thread(() => {
+        lock(lock1){
+            counter = counter + 2;
+            Thread.Sleep(1000);
+            lock(lock2) {
+                counter = counter + 4;
+            }
+        }
+    });
+
+    Thread t2 = new Thread(() => {
+        lock(lock2){
+            counter = counter + 1;
+            Thread.Sleep(1000);
+            lock(lock1) {
+                counter = counter + 3;
+            }
+        }
+    });
+
+    t1.Start();
+    t2.Start();
+    t1.Join();
+    t2.Join();
+
+
+    Console.WriteLine("Counter: " + counter);
+    Console.WriteLine("Done");
+}
 
 
 void LessonTwo() {
@@ -23,6 +62,7 @@ void LessonTwo() {
     void IncreaseCounter() {
         for (int i = 0; i < 30000; i++) {
             lock (locking) {
+                //what happen if  you remove this lock?
                 counter++;
             }
         }
