@@ -11,11 +11,73 @@ void PrintNumbers(string threadName, int sleepTime) {
 
 //LessonOne();
 //LessonTwo(); 
-LessonThree();
+//LessonThree();
+LessonFour();
 
 
 
 
+
+void LessonFour(){
+    //prevent deadlock : 
+    //must use same sequence on locking object
+    //use Monitor.TryEnter
+
+    int counter = 0;
+    object lock1 = new object();
+    object lock2 = new object();
+
+
+
+    Thread t1 = new Thread(() => {
+        bool lock1Taken = false;
+        bool lock2Taken = false;
+        try{
+            Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200), ref lock1Taken);
+            if (!lock1Taken) return;
+
+            counter = counter + 2;
+            Thread.Sleep(1000);
+
+            Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200), ref lock2Taken);
+            if(!lock2Taken) return;
+            counter = counter + 4;
+        }finally{
+            if (lock1Taken) Monitor.Exit(lock1);
+            if (lock2Taken) Monitor.Exit(lock2);
+        }
+
+    });
+
+    Thread t2 = new Thread(() => {
+        bool lock1Taken = false;
+        bool lock2Taken = false;
+        try{
+            Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200), ref lock2Taken);
+            if (!lock2Taken) return;
+
+            counter = counter + 1;
+            Thread.Sleep(1000);
+
+            Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200), ref lock1Taken);
+            if(!lock1Taken) return;
+            counter = counter + 3;
+
+        }finally{
+            if (lock1Taken) Monitor.Exit(lock1);
+            if (lock2Taken) Monitor.Exit(lock2);            
+        }
+    });
+
+    t1.Start();
+    t2.Start();
+    t1.Join();
+    t2.Join();
+
+
+    Console.WriteLine("Counter: " + counter);
+    Console.WriteLine("Done");
+}
 
 void LessonThree(){
     //deadlock
