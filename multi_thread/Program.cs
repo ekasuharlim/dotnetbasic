@@ -8,25 +8,25 @@ void PrintNumbers(string threadName, int sleepTime) {
     }
 }
 
-int counter = 0;
-object locking = new object();
-
-void IncreaseCounter() {
-    for (int i = 0; i < 10000; i++) {
-        lock(locking){
-            counter++;
-        }
-    }
-}
 
 //LessonOne();
-for(int i = 0; i < 10; i++) {
-    counter = 0;
-    LessonTwo();  
-}
- 
+LessonTwo(); 
+
+
+
 
 void LessonTwo() {
+
+    int counter = 0;
+    object locking = new object();
+
+    void IncreaseCounter() {
+        for (int i = 0; i < 30000; i++) {
+            lock (locking) {
+                counter++;
+            }
+        }
+    }
 
     Thread t1 = new Thread( () => IncreaseCounter());
     Thread t2 = new Thread( () => IncreaseCounter());
