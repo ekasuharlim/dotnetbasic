@@ -32,40 +32,53 @@ void LessonFour(){
     Thread t1 = new Thread(() => {
         bool lock1Taken = false;
         bool lock2Taken = false;
-        try{
-            Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200), ref lock1Taken);
-            if (!lock1Taken) return;
+        while(true){
+            try{
+                if(Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200))){
 
-            counter = counter + 2;
-            Thread.Sleep(1000);
+                    counter = counter + 2;
+                    Thread.Sleep(1000);
 
-            Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200), ref lock2Taken);
-            if(!lock2Taken) return;
-            counter = counter + 4;
-        }finally{
-            if (lock1Taken) Monitor.Exit(lock1);
-            if (lock2Taken) Monitor.Exit(lock2);
+                    if(Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200))){
+                        counter = counter + 4;
+                        break;
+                    } else {
+                        Console.WriteLine("t1 failed to lock2, retring..");
+                    }                
+                } else {
+                    Console.WriteLine("t1 failed to lock1, retring...");
+                }
+            }finally{
+                if (Monitor.IsEntered(lock2)) Monitor.Exit(lock2);
+                if (Monitor.IsEntered(lock1)) Monitor.Exit(lock1);            
+            }
+             Thread.Sleep(new Random().Next(10, 50)); 
         }
 
     });
 
     Thread t2 = new Thread(() => {
-        bool lock1Taken = false;
-        bool lock2Taken = false;
-        try{
-            Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200), ref lock2Taken);
-            if (!lock2Taken) return;
+        while(true){
+            try{
+                if(Monitor.TryEnter(lock2, TimeSpan.FromMilliseconds(200))){
 
-            counter = counter + 1;
-            Thread.Sleep(1000);
+                    counter = counter + 1;
+                    Thread.Sleep(1000);
 
-            Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200), ref lock1Taken);
-            if(!lock1Taken) return;
-            counter = counter + 3;
-
-        }finally{
-            if (lock1Taken) Monitor.Exit(lock1);
-            if (lock2Taken) Monitor.Exit(lock2);            
+                    if(Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200))){
+                        counter = counter + 3;
+                        break;
+                    } else {
+                        Console.WriteLine("t2 failed to lock1, retring..");
+                    }                
+                } else {
+                    Console.WriteLine("t2 failed to lock2, retring...");
+                }
+            }finally{
+                if (Monitor.IsEntered(lock2)) Monitor.Exit(lock2);
+                if (Monitor.IsEntered(lock1)) Monitor.Exit(lock1);
+            }
+             Thread.Sleep(new Random().Next(10, 50)); 
         }
     });
 
