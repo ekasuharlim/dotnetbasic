@@ -1,0 +1,77 @@
+import { useState } from "react";
+import axios from "axios";
+
+export default function App() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
+        username,
+        password,
+      });
+      setToken(response.data.Token);
+      localStorage.setItem("token", response.data.Token);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/transactions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTransactions(response.data);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Stock Tracking App</h1>
+      {!token ? (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Username"
+            className="border p-2 w-full mb-2"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="border p-2 w-full mb-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            className="bg-blue-500 text-white p-2 w-full"
+            onClick={handleLogin}
+          >
+            Login
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            className="bg-green-500 text-white p-2 w-full mb-4"
+            onClick={fetchTransactions}
+          >
+            Fetch Transactions
+          </button>
+          <ul className="border p-2">
+            {transactions.map((tx, index) => (
+              <li key={index} className="border-b p-2">{tx.TransactionType} - {tx.Amount}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

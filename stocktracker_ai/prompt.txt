@@ -1,0 +1,33 @@
+you are a senior c# developer experienced in microsoft stack assigned to create a new application based on the attached report.
+
+the user was doing it manually to create the report using google sheet, this report contains her buy and sell activity for the month
+
+The new application requirement will be:
+
+web based - Ui using react
+using .net core api 
+multiple user, user can access using google account 
+
+reports can be monthly and yearly, can also show the latest position for a stock 
+
+you will be doing it in a step by step approach as I prompt
+
+
+
+https://argosco.io/building-a-full-stack-application-with-next-js-and-net-api-backend/net/
+
+
+
+
+you are a senior c# developer designing a microsoft sql database to produce web based application that can produce attached report, its a stock profit and loss tracking application
+
+requirement:
+handle multiple user 
+handle multiple buy with different price and only sales a portion of the bought stock 
+automatic calculation of profit/loss based on purchases and sales?
+need to track the devidend
+
+
+
+
+

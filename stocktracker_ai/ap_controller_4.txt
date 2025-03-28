@@ -1,0 +1,111 @@
+// Program.cs
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using StockTrackingApi.Data;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddDbContext<StockTrackingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<DividendService>();
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+// Services/DividendService.cs
+using Microsoft.EntityFrameworkCore;
+using StockTrackingApi.Data;
+using StockTrackingApi.Models;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace StockTrackingApi.Services
+{
+    public class DividendService
+    {
+        private readonly StockTrackingDbContext _context;
+        public DividendService(StockTrackingDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task DistributeDividendsAsync(int dividendId)
+        {
+            var dividend = await _context.Dividends.FindAsync(dividendId);
+            if (dividend == null) return;
+
+            var stockHoldings = await _context.Transactions
+                .Where(t => t.StockID == dividend.StockID && t.TransactionType == "Buy")
+                .GroupBy(t => t.UserID)
+                .Select(g => new { UserID = g.Key, TotalShares = g.Sum(t => t.Quantity) })
+                .ToListAsync();
+
+            foreach (var holding in stockHoldings)
+            {
+                decimal totalDividend = holding.TotalShares * dividend.DividendPerShare;
+
+                _context.ProfitLosses.Add(new ProfitLoss
+                {
+                    UserID = holding.UserID,
+                    StockID = dividend.StockID,
+                    Profit = totalDividend,
+                    Loss = null
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+
+// Controllers/DividendsController.cs
+[ApiController]
+[Route("api/[controller]")]
+public class DividendsController : ControllerBase
+{
+    private readonly StockTrackingDbContext _context;
+    private readonly DividendService _dividendService;
+
+    public DividendsController(StockTrackingDbContext context, DividendService dividendService)
+    {
+        _context = context;
+        _dividendService = dividendService;
+    }
+
+    [HttpGet]
+    public IActionResult GetDividends()
+    {
+        return Ok(_context.Dividends.ToList());
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateDividend(Dividend dividend)
+    {
+        _context.Dividends.Add(dividend);
+        await _context.SaveChangesAsync();
+
+        await _dividendService.DistributeDividendsAsync(dividend.DividendID);
+        return CreatedAtAction(nameof(GetDividends), new { id = dividend.DividendID }, dividend);
+    }
+}

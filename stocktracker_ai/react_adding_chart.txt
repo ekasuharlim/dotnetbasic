@@ -1,0 +1,136 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Bar } from "react-chartjs-2";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+export default function App() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [transactions, setTransactions] = useState([]);
+  const [dividends, setDividends] = useState([]);
+  const [chartData, setChartData] = useState(null);
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
+        username,
+        password,
+      });
+      setToken(response.data.Token);
+      localStorage.setItem("token", response.data.Token);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem("token");
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/transactions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTransactions(response.data);
+      generateChart(response.data);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
+    }
+  };
+
+  const fetchDividends = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/dividends", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDividends(response.data);
+    } catch (error) {
+      console.error("Failed to fetch dividends", error);
+    }
+  };
+
+  const generateChart = (data) => {
+    const labels = data.map((tx) => tx.StockCode);
+    const values = data.map((tx) => tx.Quantity * tx.PricePerShare);
+
+    setChartData({
+      labels,
+      datasets: [
+        {
+          label: "Investment per Stock",
+          data: values,
+          backgroundColor: "rgba(75, 192, 192, 0.2)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
+        },
+      ],
+    });
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchTransactions();
+      fetchDividends();
+    }
+  }, [token]);
+
+  return (
+    <div className="p-4 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Stock Tracking App</h1>
+      {!token ? (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Username"
+            className="border p-2 w-full mb-2"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="border p-2 w-full mb-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            className="bg-blue-500 text-white p-2 w-full"
+            onClick={handleLogin}
+          >
+            Login
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            className="bg-red-500 text-white p-2 w-full mb-4"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+          <h2 className="text-xl font-bold mb-2">Portfolio Performance</h2>
+          {chartData && <Bar data={chartData} />}
+
+          <h2 className="text-xl font-bold mb-2 mt-4">Transactions</h2>
+          <ul className="border p-2 mb-4">
+            {transactions.map((tx, index) => (
+              <li key={index} className="border-b p-2">{tx.TransactionType} - {tx.StockCode} - {tx.Quantity} @ {tx.PricePerShare}</li>
+            ))}
+          </ul>
+
+          <h2 className="text-xl font-bold mb-2">Dividends</h2>
+          <ul className="border p-2">
+            {dividends.map((div, index) => (
+              <li key={index} className="border-b p-2">{div.StockCode} - {div.DividendDate} - {div.DividendPerShare}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

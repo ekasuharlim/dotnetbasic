@@ -1,0 +1,58 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
+
+export default function ProfitLossPage() {
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [monthlyReport, setMonthlyReport] = useState([]);
+
+  const fetchMonthlyReport = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/reports/monthly", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMonthlyReport(response.data);
+    } catch (error) {
+      console.error("Failed to fetch monthly report", error);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchMonthlyReport();
+    }
+  }, [token]);
+
+  return (
+    <div className="p-4 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Monthly Profit & Loss Report</h1>
+      {monthlyReport.length === 0 ? (
+        <p className="text-gray-500">No data available</p>
+      ) : (
+        <table className="w-full border-collapse border border-gray-300">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border p-2">Month</th>
+              <th className="border p-2">Total Purchase</th>
+              <th className="border p-2">Total Sales</th>
+              <th className="border p-2">Profit</th>
+              <th className="border p-2">Loss</th>
+              <th className="border p-2">Dividend</th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthlyReport.map((entry, index) => (
+              <tr key={index} className="text-center border-t">
+                <td className="border p-2">{entry.YearMonth}</td>
+                <td className="border p-2">${entry.TotalPurchase.toFixed(2)}</td>
+                <td className="border p-2">${entry.TotalSales.toFixed(2)}</td>
+                <td className="border p-2 text-green-600">${entry.TotalProfit.toFixed(2)}</td>
+                <td className="border p-2 text-red-600">${entry.TotalLoss.toFixed(2)}</td>
+                <td className="border p-2 text-blue-600">${entry.TotalDividend.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

@@ -32,4 +32,5 @@ await = wait for async function to finish,
 		await will not block the main thread, until the main thread call T.Result
 
 async -> function indicator, indicate function is already has Task.Run in it and wait will not block the calling thread  
-await will call Task and wait it to finish
+await will not block the thread 
+T.Result will block the thread

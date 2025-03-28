@@ -1,0 +1,279 @@
+CREATE TABLE Users (
+    UserID INT IDENTITY PRIMARY KEY,
+    Username VARCHAR(50) UNIQUE NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    PasswordHash VARBINARY(64) NOT NULL,  -- Storing hashed passwords
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+
+
+CREATE TABLE Stocks (
+    StockID INT IDENTITY PRIMARY KEY,
+    StockCode VARCHAR(10) NOT NULL UNIQUE,  -- e.g., ASII, CPIN, BBRI
+    StockName VARCHAR(100) NULL
+);
+
+
+CREATE TABLE Transactions (
+    TransactionID INT IDENTITY PRIMARY KEY,
+    UserID INT NOT NULL,
+    StockID INT NOT NULL,
+    TransactionDate DATE NOT NULL,
+    TransactionType VARCHAR(10) CHECK (TransactionType IN ('Buy', 'Sell')),
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    PricePerShare DECIMAL(18,2) NOT NULL CHECK (PricePerShare > 0),
+    Amount AS (Quantity * PricePerShare) PERSISTED,  -- Auto-calculated total amount
+    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+    FOREIGN KEY (StockID) REFERENCES Stocks(StockID)
+);
+
+
+
+CREATE TABLE StockHoldings (
+    HoldingID INT IDENTITY PRIMARY KEY,
+    UserID INT NOT NULL,
+    StockID INT NOT NULL,
+    PurchaseTransactionID INT NOT NULL,  -- Links to the original purchase
+    RemainingQuantity INT NOT NULL CHECK (RemainingQuantity >= 0),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+    FOREIGN KEY (StockID) REFERENCES Stocks(StockID),
+    FOREIGN KEY (PurchaseTransactionID) REFERENCES Transactions(TransactionID)
+);
+
+
+CREATE TABLE ProfitLoss (
+    ProfitLossID INT IDENTITY PRIMARY KEY,
+    UserID INT NOT NULL,
+    StockID INT NOT NULL,
+    SaleTransactionID INT NOT NULL,  -- Links to the sale
+    PurchaseTransactionID INT NOT NULL,  -- Links to the buy
+    SoldQuantity INT NOT NULL CHECK (SoldQuantity > 0),
+    PurchasePrice DECIMAL(18,2) NOT NULL,
+    SalePrice DECIMAL(18,2) NOT NULL,
+    Profit DECIMAL(18,2) NULL,
+    Loss DECIMAL(18,2) NULL,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+    FOREIGN KEY (StockID) REFERENCES Stocks(StockID),
+    FOREIGN KEY (SaleTransactionID) REFERENCES Transactions(TransactionID),
+    FOREIGN KEY (PurchaseTransactionID) REFERENCES Transactions(TransactionID)
+);
+
+CREATE TABLE Dividends (
+    DividendID INT IDENTITY PRIMARY KEY,
+    StockID INT NOT NULL,
+    DividendDate DATE NOT NULL,
+    DividendPerShare DECIMAL(18,2) NOT NULL CHECK (DividendPerShare >= 0),
+    FOREIGN KEY (StockID) REFERENCES Stocks(StockID)
+);
+
+
+CREATE TABLE UserDividends (
+    UserDividendID INT IDENTITY PRIMARY KEY,
+    UserID INT NOT NULL,
+    StockID INT NOT NULL,
+    DividendID INT NOT NULL,
+    SharesHeld INT NOT NULL CHECK (SharesHeld > 0),
+    TotalDividend DECIMAL(18,2) AS (SharesHeld * (SELECT DividendPerShare FROM Dividends WHERE DividendID = UserDividends.DividendID)) PERSISTED,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+    FOREIGN KEY (StockID) REFERENCES Stocks(StockID),
+    FOREIGN KEY (DividendID) REFERENCES Dividends(DividendID)
+);
+
+CREATE TABLE MonthlySummaries (
+    SummaryID INT IDENTITY PRIMARY KEY,
+    UserID INT NOT NULL,
+    YearMonth VARCHAR(7) NOT NULL, -- e.g., '2024-01'
+    TotalPurchase DECIMAL(18,2) NOT NULL DEFAULT 0,
+    TotalSales DECIMAL(18,2) NOT NULL DEFAULT 0,
+    TotalProfit DECIMAL(18,2) NOT NULL DEFAULT 0,
+    TotalLoss DECIMAL(18,2) NOT NULL DEFAULT 0,
+    TotalDividend DECIMAL(18,2) NOT NULL DEFAULT 0,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+
+
+
+1. Insert Buy Transactions
+--------------------------------
+When a stock is purchased, it's added to StockHoldings.
+
+
+INSERT INTO Transactions (UserID, StockID, TransactionDate, TransactionType, Quantity, PricePerShare)
+VALUES (@UserID, @StockID, @TransactionDate, 'Buy', @Quantity, @PricePerShare);
+
+DECLARE @TransactionID INT = SCOPE_IDENTITY();
+
+INSERT INTO StockHoldings (UserID, StockID, PurchaseTransactionID, RemainingQuantity)
+VALUES (@UserID, @StockID, @TransactionID, @Quantity);
+
+
+2. Insert Sell Transactions and Auto-Calculate Profit/Loss
+------------------------------------------------------------
+When selling, we process FIFO:
+
+Sell from the earliest available buy transactions.
+Update StockHoldings to reflect remaining quantity.
+Insert into ProfitLoss.
+
+CREATE PROCEDURE SellStock
+    @UserID INT,
+    @StockID INT,
+    @SellDate DATE,
+    @SellQuantity INT,
+    @SellPrice DECIMAL(18,2)
+AS
+BEGIN
+    DECLARE @RemainingToSell INT = @SellQuantity;
+    DECLARE @SellTransactionID INT;
+
+    -- Insert the sell transaction
+    INSERT INTO Transactions (UserID, StockID, TransactionDate, TransactionType, Quantity, PricePerShare)
+    VALUES (@UserID, @StockID, @SellDate, 'Sell', @SellQuantity, @SellPrice);
+
+    SET @SellTransactionID = SCOPE_IDENTITY();
+
+    -- Process FIFO Sales
+    WHILE @RemainingToSell > 0
+    BEGIN
+        -- Get the oldest available purchase
+        DECLARE @PurchaseTransactionID INT, @AvailableQuantity INT, @PurchasePrice DECIMAL(18,2);
+
+        SELECT TOP 1 
+            @PurchaseTransactionID = PurchaseTransactionID,
+            @AvailableQuantity = RemainingQuantity,
+            @PurchasePrice = (SELECT PricePerShare FROM Transactions WHERE TransactionID = PurchaseTransactionID)
+        FROM StockHoldings
+        WHERE UserID = @UserID AND StockID = @StockID AND RemainingQuantity > 0
+        ORDER BY PurchaseTransactionID;
+
+        IF @AvailableQuantity <= @RemainingToSell
+        BEGIN
+            -- Selling the full quantity of this purchase
+            DELETE FROM StockHoldings WHERE PurchaseTransactionID = @PurchaseTransactionID;
+            SET @RemainingToSell = @RemainingToSell - @AvailableQuantity;
+
+            INSERT INTO ProfitLoss (UserID, StockID, SaleTransactionID, PurchaseTransactionID, SoldQuantity, PurchasePrice, SalePrice, Profit, Loss)
+            VALUES (
+                @UserID, 
+                @StockID, 
+                @SellTransactionID, 
+                @PurchaseTransactionID, 
+                @AvailableQuantity, 
+                @PurchasePrice, 
+                @SellPrice,
+                CASE WHEN @SellPrice > @PurchasePrice THEN (@SellPrice - @PurchasePrice) * @AvailableQuantity ELSE NULL END,
+                CASE WHEN @SellPrice < @PurchasePrice THEN (@PurchasePrice - @SellPrice) * @AvailableQuantity ELSE NULL END
+            );
+        END
+        ELSE
+        BEGIN
+            -- Selling only part of this purchase
+            UPDATE StockHoldings
+            SET RemainingQuantity = @AvailableQuantity - @RemainingToSell
+            WHERE PurchaseTransactionID = @PurchaseTransactionID;
+
+            INSERT INTO ProfitLoss (UserID, StockID, SaleTransactionID, PurchaseTransactionID, SoldQuantity, PurchasePrice, SalePrice, Profit, Loss)
+            VALUES (
+                @UserID, 
+                @StockID, 
+                @SellTransactionID, 
+                @PurchaseTransactionID, 
+                @RemainingToSell, 
+                @PurchasePrice, 
+                @SellPrice,
+                CASE WHEN @SellPrice > @PurchasePrice THEN (@SellPrice - @PurchasePrice) * @RemainingToSell ELSE NULL END,
+                CASE WHEN @SellPrice < @PurchasePrice THEN (@PurchasePrice - @SellPrice) * @RemainingToSell ELSE NULL END
+            );
+
+            SET @RemainingToSell = 0;  -- Stop the loop
+        END;
+    END;
+END;
+
+
+2️ Distributing Dividends to Users
+----------------------------------------
+A stored procedure will calculate dividends for all users holding the stock on the dividend date
+
+CREATE PROCEDURE DistributeDividends
+    @StockID INT,
+    @DividendID INT
+AS
+BEGIN
+    INSERT INTO UserDividends (UserID, StockID, DividendID, SharesHeld)
+    SELECT 
+        sh.UserID, 
+        sh.StockID, 
+        @DividendID, 
+        SUM(sh.RemainingQuantity)  -- Count shares held on dividend date
+    FROM StockHoldings sh
+    WHERE sh.StockID = @StockID
+    GROUP BY sh.UserID, sh.StockID;
+END;
+
+
+
+Query:
+1. Monthly Stock Transactions Report
+
+SELECT 
+    FORMAT(t.TransactionDate, 'yyyy-MM') AS YearMonth,
+    SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Amount ELSE 0 END) AS TotalPurchase,
+    SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Amount ELSE 0 END) AS TotalSales,
+    SUM(pl.Profit) AS TotalProfit,
+    SUM(pl.Loss) AS TotalLoss,
+    SUM(ud.TotalDividend) AS TotalDividend
+FROM Transactions t
+LEFT JOIN ProfitLoss pl ON t.TransactionID = pl.SaleTransactionID
+LEFT JOIN UserDividends ud ON t.UserID = ud.UserID AND t.StockID = ud.StockID
+WHERE t.UserID = @UserID
+GROUP BY FORMAT(t.TransactionDate, 'yyyy-MM')
+ORDER BY YearMonth;
+
+2. Detailed Transaction Report per Stock
+SELECT 
+    t.TransactionDate,
+    s.StockCode,
+    t.TransactionType,
+    t.Quantity,
+    t.PricePerShare,
+    t.Amount,
+    pl.Profit,
+    pl.Loss
+FROM Transactions t
+LEFT JOIN Stocks s ON t.StockID = s.StockID
+LEFT JOIN ProfitLoss pl ON t.TransactionID = pl.SaleTransactionID
+WHERE t.UserID = @UserID
+ORDER BY t.TransactionDate, s.StockCode;
+
+
+ 3. Portfolio Holdings Report
+ SELECT 
+    s.StockCode,
+    SUM(sh.RemainingQuantity) AS TotalShares,
+    ROUND(SUM(t.Amount) / NULLIF(SUM(t.Quantity), 0), 2) AS AvgBuyPrice,
+    SUM(sh.RemainingQuantity) * (
+        SELECT TOP 1 PricePerShare FROM Transactions WHERE StockID = s.StockID ORDER BY TransactionDate DESC
+    ) AS CurrentValue
+FROM StockHoldings sh
+JOIN Stocks s ON sh.StockID = s.StockID
+JOIN Transactions t ON sh.PurchaseTransactionID = t.TransactionID
+WHERE sh.UserID = @UserID
+GROUP BY s.StockCode;
+
+4. Dividend Earnings Repor
+
+SELECT 
+    d.DividendDate,
+    s.StockCode,
+    ud.SharesHeld,
+    d.DividendPerShare,
+    ud.TotalDividend
+FROM UserDividends ud
+JOIN Dividends d ON ud.DividendID = d.DividendID
+JOIN Stocks s ON ud.StockID = s.StockID
+WHERE ud.UserID = @UserID
+ORDER BY d.DividendDate DESC;
+
+

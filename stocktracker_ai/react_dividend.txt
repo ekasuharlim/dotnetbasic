@@ -1,0 +1,181 @@
+import { useState } from "react";
+import axios from "axios";
+
+export default function App() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [transactions, setTransactions] = useState([]);
+  const [stockCode, setStockCode] = useState("");
+  const [transactionType, setTransactionType] = useState("Buy");
+  const [quantity, setQuantity] = useState("");
+  const [pricePerShare, setPricePerShare] = useState("");
+  const [dividends, setDividends] = useState([]);
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
+        username,
+        password,
+      });
+      setToken(response.data.Token);
+      localStorage.setItem("token", response.data.Token);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem("token");
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/transactions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTransactions(response.data);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
+    }
+  };
+
+  const fetchDividends = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/dividends", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDividends(response.data);
+    } catch (error) {
+      console.error("Failed to fetch dividends", error);
+    }
+  };
+
+  const addTransaction = async () => {
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/transactions",
+        {
+          StockCode: stockCode,
+          TransactionType: transactionType,
+          Quantity: parseInt(quantity),
+          PricePerShare: parseFloat(pricePerShare),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setTransactions([...transactions, response.data]);
+      setStockCode("");
+      setQuantity("");
+      setPricePerShare("");
+    } catch (error) {
+      console.error("Failed to add transaction", error);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Stock Tracking App</h1>
+      {!token ? (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Username"
+            className="border p-2 w-full mb-2"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="border p-2 w-full mb-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            className="bg-blue-500 text-white p-2 w-full"
+            onClick={handleLogin}
+          >
+            Login
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            className="bg-red-500 text-white p-2 w-full mb-4"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+          <button
+            className="bg-green-500 text-white p-2 w-full mb-4"
+            onClick={fetchTransactions}
+          >
+            Fetch Transactions
+          </button>
+          <button
+            className="bg-purple-500 text-white p-2 w-full mb-4"
+            onClick={fetchDividends}
+          >
+            Fetch Dividends
+          </button>
+
+          <div className="border p-4 mb-4">
+            <h2 className="text-xl font-bold mb-2">Add Transaction</h2>
+            <input
+              type="text"
+              placeholder="Stock Code"
+              className="border p-2 w-full mb-2"
+              value={stockCode}
+              onChange={(e) => setStockCode(e.target.value)}
+            />
+            <select
+              className="border p-2 w-full mb-2"
+              value={transactionType}
+              onChange={(e) => setTransactionType(e.target.value)}
+            >
+              <option value="Buy">Buy</option>
+              <option value="Sell">Sell</option>
+            </select>
+            <input
+              type="number"
+              placeholder="Quantity"
+              className="border p-2 w-full mb-2"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="Price Per Share"
+              className="border p-2 w-full mb-2"
+              value={pricePerShare}
+              onChange={(e) => setPricePerShare(e.target.value)}
+            />
+            <button
+              className="bg-blue-500 text-white p-2 w-full"
+              onClick={addTransaction}
+            >
+              Add Transaction
+            </button>
+          </div>
+
+          <h2 className="text-xl font-bold mb-2">Transactions</h2>
+          <ul className="border p-2 mb-4">
+            {transactions.map((tx, index) => (
+              <li key={index} className="border-b p-2">{tx.TransactionType} - {tx.StockCode} - {tx.Quantity} @ {tx.PricePerShare}</li>
+            ))}
+          </ul>
+
+          <h2 className="text-xl font-bold mb-2">Dividends</h2>
+          <ul className="border p-2">
+            {dividends.map((div, index) => (
+              <li key={index} className="border-b p-2">{div.StockCode} - {div.DividendDate} - {div.DividendPerShare}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

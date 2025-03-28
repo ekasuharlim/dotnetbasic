@@ -1,0 +1,121 @@
+// Program.cs
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
+using StockTrackingApi.Data;
+using StockTrackingApi.Services;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddDbContext<StockTrackingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<DividendService>();
+builder.Services.AddScoped<AuthService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
+});
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+// Controllers/TransactionsController.cs
+[Authorize(Policy = "UserOnly")]
+[ApiController]
+[Route("api/[controller]")]
+public class TransactionsController : ControllerBase
+{
+    private readonly StockTrackingDbContext _context;
+    public TransactionsController(StockTrackingDbContext context)
+    {
+        _context = context;
+    }
+    
+    [HttpGet]
+    public IActionResult GetTransactions()
+    {
+        return Ok(_context.Transactions.ToList());
+    }
+    
+    [HttpPost]
+    public IActionResult CreateTransaction(Transaction transaction)
+    {
+        _context.Transactions.Add(transaction);
+        _context.SaveChanges();
+        return CreatedAtAction(nameof(GetTransactions), new { id = transaction.TransactionID }, transaction);
+    }
+}
+
+// Controllers/DividendsController.cs
+[Authorize(Policy = "AdminOnly")]
+[ApiController]
+[Route("api/[controller]")]
+public class DividendsController : ControllerBase
+{
+    private readonly StockTrackingDbContext _context;
+    private readonly DividendService _dividendService;
+
+    public DividendsController(StockTrackingDbContext context, DividendService dividendService)
+    {
+        _context = context;
+        _dividendService = dividendService;
+    }
+
+    [HttpGet]
+    public IActionResult GetDividends()
+    {
+        return Ok(_context.Dividends.ToList());
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateDividend(Dividend dividend)
+    {
+        _context.Dividends.Add(dividend);
+        await _context.SaveChangesAsync();
+
+        await _dividendService.DistributeDividendsAsync(dividend.DividendID);
+        return CreatedAtAction(nameof(GetDividends), new { id = dividend.DividendID }, dividend);
+    }
+}

@@ -31,7 +31,7 @@ void LessonFour(){
 
     Thread t1 = new Thread(() => {
         bool lock1Taken = false;
-        bool lock2Taken = false;
+        
         while(true){
             try{
                 if(Monitor.TryEnter(lock1, TimeSpan.FromMilliseconds(200))){

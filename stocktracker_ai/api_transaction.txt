@@ -1,0 +1,132 @@
+namespace StockTrackingApi.Services
+{
+    public class TransactionService
+    {
+        private readonly StockTrackingDbContext _context;
+        public TransactionService(StockTrackingDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task ProcessSaleAsync(Transaction saleTransaction)
+        {
+            var stockHoldings = await _context.Transactions
+                .Where(t => t.StockID == saleTransaction.StockID && t.UserID == saleTransaction.UserID && t.TransactionType == "Buy")
+                .OrderBy(t => t.TransactionDate)
+                .ToListAsync();
+
+            int remainingToSell = saleTransaction.Quantity;
+            foreach (var purchase in stockHoldings)
+            {
+                if (remainingToSell <= 0) break;
+
+                int sellQuantity = remainingToSell > purchase.Quantity ? purchase.Quantity : remainingToSell;
+                decimal profitOrLoss = (saleTransaction.PricePerShare - purchase.PricePerShare) * sellQuantity;
+
+                _context.ProfitLosses.Add(new ProfitLoss
+                {
+                    UserID = saleTransaction.UserID,
+                    StockID = saleTransaction.StockID,
+                    SaleTransactionID = saleTransaction.TransactionID,
+                    PurchaseTransactionID = purchase.TransactionID,
+                    SoldQuantity = sellQuantity,
+                    PurchasePrice = purchase.PricePerShare,
+                    SalePrice = saleTransaction.PricePerShare,
+                    Profit = profitOrLoss > 0 ? profitOrLoss : null,
+                    Loss = profitOrLoss < 0 ? -profitOrLoss : null
+                });
+
+                remainingToSell -= sellQuantity;
+            }
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+
+
+// Controllers/TransactionsController.cs
+[ApiController]
+[Route("api/[controller]")]
+public class TransactionsController : ControllerBase
+{
+    private readonly StockTrackingDbContext _context;
+    public TransactionsController(StockTrackingDbContext context)
+    {
+        _context = context;
+    }
+    
+    [HttpGet]
+    public IActionResult GetTransactions()
+    {
+        return Ok(_context.Transactions.ToList());
+    }
+    
+    [HttpPost]
+    public IActionResult CreateTransaction(Transaction transaction)
+    {
+        _context.Transactions.Add(transaction);
+        _context.SaveChanges();
+        return CreatedAtAction(nameof(GetTransactions), new { id = transaction.TransactionID }, transaction);
+    }
+}
+
+
+-------------------
+prompt:
+integrate TransactionController and TransactionService on this code 
+
+
+result:
+----------------------
+using Microsoft.AspNetCore.Mvc;
+using StockTrackingApi.Services;
+using System.Threading.Tasks;
+
+[ApiController]
+[Route("api/[controller]")]
+public class TransactionsController : ControllerBase
+{
+    private readonly TransactionService _transactionService;
+    private readonly StockTrackingDbContext _context;
+
+    public TransactionsController(TransactionService transactionService, StockTrackingDbContext context)
+    {
+        _transactionService = transactionService;
+        _context = context;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetTransactions()
+    {
+        var transactions = await _context.Transactions.ToListAsync();
+        return Ok(transactions);
+    }
+
+    [HttpPost("buy")]
+    public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
+    {
+        if (transaction == null) return BadRequest("Invalid transaction data.");
+
+        _context.Transactions.Add(transaction);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetTransactions), new { id = transaction.TransactionID }, transaction);
+    }
+
+    [HttpPost("sell")]
+    public async Task<IActionResult> ProcessSale([FromBody] Transaction saleTransaction)
+    {
+        if (saleTransaction == null) return BadRequest("Invalid sale transaction data.");
+        if (saleTransaction.TransactionType != "Sell") return BadRequest("Transaction must be of type 'Sell'.");
+
+        try
+        {
+            await _transactionService.ProcessSaleAsync(saleTransaction);
+            return Ok(new { message = "Sale processed successfully." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Sale processing failed.", details = ex.Message });
+        }
+    }
+}

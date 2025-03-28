@@ -8,13 +8,15 @@ namespace asyncawait
     {
         static void Main(string[] args)
         {
-            var taskMethod1Run = Method1_LongRunning();
+
+            var taskMethod1Run = GetResponseFromHttp();
             Method2_ShortRunning();            
 
-            Task<int> nf = new (NormalFunction);
-            nf.Start();
-            Console.WriteLine(nf.Result);
+            //Task<int> nf = new (NormalFunction);
+            //nf.Start();
             var count = taskMethod1Run.Result;
+            //Console.WriteLine(nf.Result);
+            //var count = taskMethod1Run.Result;
             Console.WriteLine($"Method 1 length {count}");
 
             Console.WriteLine("End");
@@ -22,7 +24,7 @@ namespace asyncawait
         }
 
 
-        static async Task<int> Method1_LongRunning(){
+        static async Task<int> GetResponseFromHttp(){
             var count = 0;
             await Task.Run( () => {
                     for(var i=0; i < 50;i++){
@@ -44,12 +46,13 @@ namespace asyncawait
         }
 
         static async Task void_method(){
-            await Method1_LongRunning();
+            await GetResponseFromHttp();
         }
 
         private static int  NormalFunction() {
-            int loop = 10;
+            int loop = 30;
             for (var i = 0; i < loop; i++) {
+                Thread.Sleep(1000);
                 Console.WriteLine("Normal function {0}", i);
             }
 

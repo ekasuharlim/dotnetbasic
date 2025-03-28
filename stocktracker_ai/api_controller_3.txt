@@ -1,0 +1,170 @@
+// Program.cs
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using StockTrackingApi.Data;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddDbContext<StockTrackingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+// StockTrackingDbContext.cs
+using Microsoft.EntityFrameworkCore;
+using StockTrackingApi.Models;
+
+namespace StockTrackingApi.Data
+{
+    public class StockTrackingDbContext : DbContext
+    {
+        public StockTrackingDbContext(DbContextOptions<StockTrackingDbContext> options) : base(options) { }
+
+        public DbSet<User> Users { get; set; }
+        public DbSet<Stock> Stocks { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<Dividend> Dividends { get; set; }
+        public DbSet<ProfitLoss> ProfitLosses { get; set; }
+    }
+}
+
+// Models/User.cs
+namespace StockTrackingApi.Models
+{
+    public class User
+    {
+        public int UserID { get; set; }
+        public string Username { get; set; }
+        public string Email { get; set; }
+        public string PasswordHash { get; set; }
+    }
+}
+
+// Models/Stock.cs
+namespace StockTrackingApi.Models
+{
+    public class Stock
+    {
+        public int StockID { get; set; }
+        public string StockCode { get; set; }
+        public string StockName { get; set; }
+    }
+}
+
+// Models/Transaction.cs
+namespace StockTrackingApi.Models
+{
+    public class Transaction
+    {
+        public int TransactionID { get; set; }
+        public int UserID { get; set; }
+        public int StockID { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string TransactionType { get; set; } // Buy/Sell
+        public int Quantity { get; set; }
+        public decimal PricePerShare { get; set; }
+        public decimal Amount => Quantity * PricePerShare;
+    }
+}
+
+// Models/Dividend.cs
+namespace StockTrackingApi.Models
+{
+    public class Dividend
+    {
+        public int DividendID { get; set; }
+        public int StockID { get; set; }
+        public DateTime DividendDate { get; set; }
+        public decimal DividendPerShare { get; set; }
+    }
+}
+
+// Models/ProfitLoss.cs
+namespace StockTrackingApi.Models
+{
+    public class ProfitLoss
+    {
+        public int ProfitLossID { get; set; }
+        public int UserID { get; set; }
+        public int StockID { get; set; }
+        public int SaleTransactionID { get; set; }
+        public int PurchaseTransactionID { get; set; }
+        public int SoldQuantity { get; set; }
+        public decimal PurchasePrice { get; set; }
+        public decimal SalePrice { get; set; }
+        public decimal? Profit { get; set; }
+        public decimal? Loss { get; set; }
+    }
+}
+
+// Services/TransactionService.cs
+using Microsoft.EntityFrameworkCore;
+using StockTrackingApi.Data;
+using StockTrackingApi.Models;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace StockTrackingApi.Services
+{
+    public class TransactionService
+    {
+        private readonly StockTrackingDbContext _context;
+        public TransactionService(StockTrackingDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task ProcessSaleAsync(Transaction saleTransaction)
+        {
+            var stockHoldings = await _context.Transactions
+                .Where(t => t.StockID == saleTransaction.StockID && t.UserID == saleTransaction.UserID && t.TransactionType == "Buy")
+                .OrderBy(t => t.TransactionDate)
+                .ToListAsync();
+
+            int remainingToSell = saleTransaction.Quantity;
+            foreach (var purchase in stockHoldings)
+            {
+                if (remainingToSell <= 0) break;
+
+                int sellQuantity = remainingToSell > purchase.Quantity ? purchase.Quantity : remainingToSell;
+                decimal profitOrLoss = (saleTransaction.PricePerShare - purchase.PricePerShare) * sellQuantity;
+
+                _context.ProfitLosses.Add(new ProfitLoss
+                {
+                    UserID = saleTransaction.UserID,
+                    StockID = saleTransaction.StockID,
+                    SaleTransactionID = saleTransaction.TransactionID,
+                    PurchaseTransactionID = purchase.TransactionID,
+                    SoldQuantity = sellQuantity,
+                    PurchasePrice = purchase.PricePerShare,
+                    SalePrice = saleTransaction.PricePerShare,
+                    Profit = profitOrLoss > 0 ? profitOrLoss : null,
+                    Loss = profitOrLoss < 0 ? -profitOrLoss : null
+                });
+
+                remainingToSell -= sellQuantity;
+            }
+            await _context.SaveChangesAsync();
+        }
+    }
+}

@@ -1,0 +1,309 @@
+you are a c# senior developer mentoring junior developer focusing on training his promblem abstraction and problem description skills
+when given an excercise, provide quations that will trigger the junior dev to think about the solution to the problem.
+question must be arranged in step by step order to build the junior way of thinking
+
+techinique can be used:
+linkedlist :
+	slow fast pointer to get the middle of the linked list 
+
+array 
+	difference array to to range update on an array based on array of steps
+	
+circular range:
+	a - z to z to a 
+	0 - 24 to 24 to 0
+	use normalize technique involving modulo to keep value within range 
+
+https://www.hackerrank.com/challenges/between-two-sets/problem?isFullScreen=true
+
+2, 4 
+24, 36
+	
+4, 8, 12, 16, 20, 24, 28, 32, 36
+
+4, 12, 
+ 
+find all numbers that ar divisable by 2 and 4  until its bigger than 36
+	how? add with each component and check if able to divide, if yes for all the component add the result
+		 add it by the last component and check if it is , then add to temp list
+from temp list check if each is divisable for the array b and resul t in 0, if it is add it to result
+
+
+https://www.hackerrank.com/challenges/breaking-best-and-worst-records/problem?isFullScreen=false
+
+return no of times, broke her record, max  and min
+first score is starting point
+
+minScore = first Score
+maxScore = second Score 
+
+minBreak = 0
+maxBreak = 0
+
+for each score in games except the first score 
+	check if score < minScore  
+		minBreak++
+		minScore = score
+	checi if score > maxScore
+		maxBreak++
+		maxScore = score
+
+return array of (maxBreak, minBreak)
+
+
+https://www.hackerrank.com/challenges/migratory-birds/problem?isFullScreen=true
+
+list of bird type id, 
+for each element :
+	check if exist ,then add to the elementNum 
+
+if there are 2 id have the max amount, return the smallest id 
+	how to check if 2 id have the max amount?
+		foreach pair
+		
+		
+https://www.hackerrank.com/challenges/luck-balance/problem?
+
+
+which important contest to remove, based on K
+	find all important contest , remove the smallest luck value
+	
+	foreach contest 
+		if contest is important then 
+			add luck value to list important contest
+		if not 
+			add luckValue to luckSum
+	
+	important contest sort by luck value
+		
+	maximunNo of important contest that can win = numberOfImportantContest - k
+	remove the first maximunNo of important contest that can win 
+	
+	add the rest to luckSum
+	
+https://www.hackerrank.com/challenges/minimum-absolute-difference-in-an-array/problem
+
+Problem:
+	Find absolute difference for each pair in a list of int and get the minimun
+	
+	find pair from the int list 
+	sort Array
+	find mid, check mid -1 and mid + 1 which one is minimun then return it.
+		above logic is wrong there can be 
+	
+	-2, 2 4
+	1, 3 , 5, 8
+
+
+https://www.hackerrank.com/challenges/greedy-florist/problem
+	
+	cost list 
+	k = no of people 
+	cost list length = number of flower
+
+	problem:
+		minimum cost to pay to buy all the flower 
+	
+	constraint:
+		for each person :
+			buy will be 
+			1st buy : (0 + 1) x original price
+			2nd buy : (1 + 1) x original price 
+		will need to buy all the flower 
+
+	cost : 2, 5, 6  -> need to buy: 3
+	person : 2 
+	
+	if num person >= need to buy , return all sum of the cost
+
+	1st person : 6 2	
+	2nd person : 5
+	
+	boughtFlower = 0
+	multiplies = 1
+	mostExpensiveIdx =  last item on cost;
+	
+	while (boughtFlower < numFlowerToBuy && mostExpensiveIdx >= 0) {
+		foreach person in group 
+			buy most expensive flower first then move on to the next
+			sumCost = sumCost + cost[index] * multiplies
+			mostExpensiveIndex--
+			if (mostExpensiveIdx < 0) break;
+			
+		multiplies = +1
+	}
+	return sumCost
+	
+
+	
+https://www.hackerrank.com/challenges/two-strings/problem
+problem : 
+	given 2 string, return YES/NO if they share common substring
+
+constraint:
+	1 char is the same then, return YES 
+
+	for each char in string1 
+		if not exist in hash, add to hash
+	
+	for each char in string2
+		if exist in hash, return YES
+	
+	
+	return NO
+
+
+https://www.hackerrank.com/challenges/ctci-ransom-note/problem
+
+problem:
+	note and magazine, find if note can be constructed using WORD in magazine
+	
+	if word in note > magazine return NO
+	
+	foreach word in magazine 
+		save it to magazineWords, 
+		add 1 if word already exist in magazineWords 
+		
+	foreach word in note 
+		if not exist in magazineWords or count in magazine word > 0 return "NO"
+		
+		if word exist in magazineWords and count > 0 reduce count 
+		
+
+	return YES
+
+
+https://www.hackerrank.com/challenges/2d-array/problem
+problem : get maxsum of hourglass 
+
+constraint: hourglas from row,col 
+			row,col  	row, col + 1 		row, col + 2
+						row + 1, col + 1
+			row+2,col 	row + 2, col +1 	row + 2, col + 2
+			
+			row, col > 0
+			row, col < 6
+			
+			maxValue  = 0
+			foreach row,col getSumHourGlass
+				maxvalue =  Max(sum, maxValue)
+			
+			return maxValue
+			
+
+https://www.hackerrank.com/challenges/minimum-swaps-2/problem?
+
+problem : list of positive number , minimum number of swap to order it
+
+requirment: can move from any index to another index 
+			number always 1 to X
+			
+solution:			
+			for index = 0 to arr length 
+				curNumbder = index  + 1
+				
+				if arr[index] == curNumber continue
+				
+				for searchIndex  = index to arr length
+					if arr[searcIndex] == curNumber	
+						swap(index, searchIndex)
+						swapCount++
+						
+						
+			return swapCount
+			
+			
+
+
+https://leetcode.com/problems/sort-list/description/?envType=problem-list-v2&envId=merge-sort
+
+problem : list of nodes , unorderder, need to order it
+
+requiremen : node has value and next
+
+			curNode = node
+			head  = curNode.next
+			while(node.next != null) 
+				if curNode.value > curNode.next.value 
+					temp = curNode.next
+					curNode.next = curNode.next.next 
+					temp.next  = curNode
+			return head
+				
+				 
+				 
+
+understand problem - pseduocode - program 
+				
+				
+
+https://leetcode.com/problems/add-two-numbers/description/
+problem : 2 linked list containts int , length of list can be different 
+
+solution:
+	take larger list add to small list
+	move thru small list until the end of small list 
+		add node from small and large 
+		keep remaining if exist 
+
+	move trhu large list 
+		add remaoing or keep original value
+
+
+
+https://leetcode.com/problems/palindrome-number/
+is number is palindrome without convert to string 
+
+
+
+https://leetcode.com/problems/longest-substring-without-repeating-characters/description/
+problem : find longest substring on a string, without repeating char
+
+solution :  wrong solution, use 2 sliding windows technique
+	maxSubString = "";
+	subString  = "";
+	seen  = hashset of char
+	
+	having start = 0, end = 1 
+
+	while start < s length 
+		from start to end 
+			if not in seen 
+				add to seen 
+				substring =  substring + curChar
+				end = end + 1
+			if seen 
+				exit
+		if length substring > maxSubString , maxSubString = subString
+		clear seen 
+		start = start + 1
+		end  = start + 1
+	
+	return maxSubString
+	
+
+https://leetcode.com/problems/longest-palindromic-substring/description/
+
+
+
+https://leetcode.com/problems/integer-to-roman/
+
+			
+
+
+https://leetcode.com/problems/min-cost-climbing-stairs/
+
+	climb()
+
+	climb(cost, step, curLevel)
+		if curLevel >= n return cost;
+		
+		
+			
+				
+				
+		  
+
+	
+
+		
