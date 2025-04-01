@@ -15,6 +15,9 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API for managing a list of fruit and their stock status.",
     });
 });
+
+
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
