@@ -17,15 +17,14 @@ public class OrderMatchingEngine
         // if requested qty can't be fulfiled than the left over will need to be entered in buy queue, but if the qty available is higher than the buy qty
         // the left over will need to stay at sell queue
 
-        Decimal minSellPrice = _sellOrders.Keys.Min();
+        if (_sellOrders.Count == 0) {
+            AddToOrderToQueue(order, _buyOrders);
+            return null;
+        }
 
+        Decimal minSellPrice = _sellOrders.Keys.Min();
         if (order.Price < minSellPrice) {
-            if(_buyOrders.ContainsKey(order.Price)) {
-                _buyOrders[order.Price].Enqueue(order);
-            } else {
-                _buyOrders.Add(order.Price, new Queue<Order>());
-                _buyOrders[order.Price].Enqueue(order);
-            }
+            AddToOrderToQueue(order, _buyOrders);
             return null;
         }
 
@@ -67,16 +66,21 @@ public class OrderMatchingEngine
 
         if (requestedQty > fulfilledQty) {
             order.Quantity = requestedQty - fulfilledQty;
-            if(_buyOrders.ContainsKey(order.Price)) {
-                _buyOrders[order.Price].Enqueue(order);
-            } else {
-                _buyOrders.Add(order.Price, new Queue<Order>());
-                _buyOrders[order.Price].Enqueue(order);
-            }
+            AddToOrderToQueue(order, _buyOrders);
         }
 
         return transactions;
 
+    }
+
+
+    private void AddToOrderToQueue(Order order,  SortedDictionary<decimal, Queue<Order>> orders) {
+            if(orders.ContainsKey(order.Price)) {
+                orders[order.Price].Enqueue(order);
+            } else {
+                orders.Add(order.Price, new Queue<Order>());
+                orders[order.Price].Enqueue(order);
+            }        
     }
 
     public void Sell(Order order)
